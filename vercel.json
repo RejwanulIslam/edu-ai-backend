@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
+  "env": {
+    "BETTER_AUTH_URL": "https://eduai-frontend-tan.vercel.app",
+    "FRONTEND_URL": "https://eduai-frontend-tan.vercel.app"
+  }
+}

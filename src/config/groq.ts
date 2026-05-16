@@ -1,8 +1,12 @@
 import Groq from "groq-sdk";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || "",
-});
+function getGroqClient() {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY is not configured on the server");
+  }
+  return new Groq({ apiKey });
+}
 
 // Helper: generateContent wrapper
 function createModel(model: string, config: { temperature: number; top_p: number; max_tokens: number }) {
@@ -11,18 +15,25 @@ function createModel(model: string, config: { temperature: number; top_p: number
     generationConfig: config,
 
     // Gemini-style generateContent → Groq chat completion
-    async generateContent(prompt: string) {
+    async generateContent(prompt: string, options?: { json?: boolean }) {
+      const groq = getGroqClient();
       const completion = await groq.chat.completions.create({
         model,
         messages: [{ role: "user", content: prompt }],
-        temperature: config.temperature,
+        temperature: options?.json ? 0.2 : config.temperature,
         top_p: config.top_p,
         max_tokens: config.max_tokens,
+        ...(options?.json ? { response_format: { type: "json_object" as const } } : {}),
       });
+
+      const content = completion.choices[0]?.message?.content || "";
+      if (!content) {
+        throw new Error("AI returned no content");
+      }
 
       return {
         response: {
-          text: () => completion.choices[0]?.message?.content || "",
+          text: () => content,
         },
       };
     },
@@ -50,6 +61,7 @@ function createModel(model: string, config: { temperature: number; top_p: number
         async sendMessage(userMessage: string) {
           messages.push({ role: "user", content: userMessage });
 
+          const groq = getGroqClient();
           const completion = await groq.chat.completions.create({
             model,
             messages,
@@ -84,4 +96,4 @@ export const groqProModel = createModel("llama-3.3-70b-versatile", {
   max_tokens: 4096,
 });
 
-export default groq;
+export default getGroqClient;
